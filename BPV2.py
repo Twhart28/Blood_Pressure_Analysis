@@ -5,39 +5,8 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 
-try:
-    import tkinter  # noqa: F401  # Imported to ensure Tk is available before configuring matplotlib.
-except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
-    raise SystemExit("tkinter is required to run this script. Please install it and retry.") from exc
-
-
-def _import_matplotlib() -> "matplotlib.pyplot":
-    """Import matplotlib with a backend compatible with Tkinter.
-
-    This function performs the import lazily to avoid expensive startup costs
-    until the GUI is actually needed, and it provides clearer error messages if
-    the dependency is missing.
-    """
-
-    try:
-        import matplotlib
-        matplotlib.use("TkAgg", force=True)
-        import matplotlib.pyplot as plt
-    except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
-        raise SystemExit(
-            "matplotlib is required to run this script. Please install it and retry."
-        ) from exc
-    return plt
-
-
-def _import_pandas() -> "pd":
-    """Import pandas lazily to surface clearer dependency errors."""
-
-    try:
-        import pandas as pd
-    except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
-        raise SystemExit("pandas is required to run this script. Please install it and retry.") from exc
-    return pd
+import matplotlib.pyplot as plt
+import pandas as pd
 
 
 class ImportSelection:
@@ -401,48 +370,29 @@ def _read_raw_lines(path: Path, limit: int = 200) -> list[str]:
 
 
 def plot_selected_columns(file_path: Path, selection: ImportSelection) -> None:
-    pd = _import_pandas()
-    plt = _import_matplotlib()
     header_idx = selection.header_row - 1
     first_data_idx = selection.first_data_row - 1
     skip_rows = [idx for idx in range(first_data_idx) if idx != header_idx]
 
-    selected_columns = [selection.time_column - 1, selection.pressure_column - 1]
-
-    def _load_dataframe(engine: str, on_bad_lines: str | None = None) -> pd.DataFrame:
-        return pd.read_csv(
+    try:
+        df = pd.read_csv(
             file_path,
             delimiter=selection.separator,
             header=header_idx,
-            usecols=selected_columns,
+            usecols=[selection.time_column - 1, selection.pressure_column - 1],
             skiprows=skip_rows,
-            engine=engine,
-            on_bad_lines=on_bad_lines,
+            engine="c",
         )
-
-    try:
-        try:
-            df = _load_dataframe(engine="c")
-        except pd.errors.ParserError:
-            # Fall back to the Python engine to tolerate ragged rows.
-            df = _load_dataframe(engine="python", on_bad_lines="skip")
     except Exception as exc:
         messagebox.showerror(
             "Import error",
-            "Failed to parse the selected file.\n"
+            "Failed to parse the selected file with the fast C parser.\n"
             f"Details: {exc}",
         )
         return
 
-    if df.shape[1] < 2:
-        messagebox.showerror(
-            "Import error",
-            "Unable to read both selected columns. Please check your selections and try again.",
-        )
-        return
-
-    time_series = df.iloc[:, 0]
-    pressure_series = df.iloc[:, 1]
+    time_series = df.iloc[:, selection.time_column - 1]
+    pressure_series = df.iloc[:, selection.pressure_column - 1]
 
     plt.figure(figsize=(10, 4))
     plt.plot(time_series, pressure_series, marker="o", linestyle="-", linewidth=1)
@@ -479,4 +429,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    
