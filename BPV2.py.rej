@@ -1,0 +1,30 @@
+diff a/BPV2.py b/BPV2.py	(rejected hunks)
+@@ -423,26 +456,26 @@ def plot_selected_columns(file_path: Path, selection: ImportSelection) -> None:
+ def main() -> None:
+     root = tk.Tk()
+     root.withdraw()
+     file_path_str = filedialog.askopenfilename(
+         title="Select continuous BP export",
+         filetypes=[("Text files", "*.txt")],
+     )
+     root.destroy()
+     if not file_path_str:
+         return
+ 
+     file_path = Path(file_path_str)
+     raw_lines = _read_raw_lines(file_path)
+     if not raw_lines:
+         messagebox.showerror("Empty file", "No data found in the selected file.")
+         return
+ 
+     selection = launch_import_dialog(file_path, raw_lines)
+     if selection is None:
+         return
+ 
+     plot_selected_columns(file_path, selection)
+ 
+ 
+ if __name__ == "__main__":
+-    main()
+\ No newline at end of file
++    main()

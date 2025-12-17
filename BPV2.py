@@ -5,8 +5,39 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 
-import matplotlib.pyplot as plt
-import pandas as pd
+try:
+    import tkinter  # noqa: F401  # Imported to ensure Tk is available before configuring matplotlib.
+except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
+    raise SystemExit("tkinter is required to run this script. Please install it and retry.") from exc
+
+
+def _import_matplotlib() -> "matplotlib.pyplot":
+    """Import matplotlib with a backend compatible with Tkinter.
+
+    This function performs the import lazily to avoid expensive startup costs
+    until the GUI is actually needed, and it provides clearer error messages if
+    the dependency is missing.
+    """
+
+    try:
+        import matplotlib
+        matplotlib.use("TkAgg", force=True)
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
+        raise SystemExit(
+            "matplotlib is required to run this script. Please install it and retry."
+        ) from exc
+    return plt
+
+
+def _import_pandas() -> "pd":
+    """Import pandas lazily to surface clearer dependency errors."""
+
+    try:
+        import pandas as pd
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
+        raise SystemExit("pandas is required to run this script. Please install it and retry.") from exc
+    return pd
 
 
 class ImportSelection:
@@ -370,6 +401,8 @@ def _read_raw_lines(path: Path, limit: int = 200) -> list[str]:
 
 
 def plot_selected_columns(file_path: Path, selection: ImportSelection) -> None:
+    pd = _import_pandas()
+    plt = _import_matplotlib()
     header_idx = selection.header_row - 1
     first_data_idx = selection.first_data_row - 1
     skip_rows = [idx for idx in range(first_data_idx) if idx != header_idx]
